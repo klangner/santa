@@ -7,46 +7,30 @@ import pandas as pd
 
 import santa
 
+MAX_LOAD = santa.WEIGHT_LIMIT - santa.SLEIGH_WEIGHT
+
 
 def load_data():
     return pd.read_csv('../data/gifts.csv')
 
 
-def get_distance(item):
-    return item[1]
-
-
 def find_trips(df):
     df = df.sort(['Longitude'])
-    trips = []
-    gifts = []
+    trip_id = 0
     weight = 0
     for i, row in df.iterrows():
-        if weight + row.Weight > santa.WEIGHT_LIMIT - santa.SLEIGH_WEIGHT:
-            trips.append(gifts)
-            gifts = []
-            weight = 0
         weight += row.Weight
-        gifts.append((row.GiftId, santa.haversine((row.Latitude, row.Longitude), santa.NORTH_POLE)))
-    trips.append(gifts)
-    xs = [sorted(trip, key=get_distance) for trip in trips]
-    return to_pandas(xs)
+        if weight > MAX_LOAD:
+            trip_id += 1
+            weight = row.Weight
+        df.set_value(i, 'TripId', trip_id)
+        dist = santa.haversine((row.Latitude, row.Longitude), santa.NORTH_POLE)
+        df.set_value(i, 'dist', dist)
+    return df.sort(['TripId', 'dist'])
 
 
 def save_solution(df):
     df[['GiftId', 'TripId']].to_csv('../data/solution.csv', index=False)
-
-
-def to_pandas(trips):
-    trip_series = []
-    gift_series = []
-    with open('../data/solution.csv', "a") as f:
-        f.write('GiftId,TripId')
-        for trip_id, gifts in enumerate(trips):
-            for (gift_id, _) in gifts:
-                gift_series.append(int(gift_id))
-                trip_series.append(trip_id)
-    return pd.DataFrame({'GiftId': gift_series, 'TripId': trip_series})
 
 
 def solution():
@@ -56,9 +40,8 @@ def solution():
     trips = find_trips(data)
     print('Save trips...')
     save_solution(trips)
-    xs = pd.merge(trips, data, on='GiftId', how='left')
-    print('Calculate score for %d trips...' % len(xs))
-    score = santa.weighted_reindeer_weariness(xs)
+    print('Calculate score for %d trips...' % len(trips))
+    score = santa.weighted_reindeer_weariness(trips)
     print(score)
 
 
