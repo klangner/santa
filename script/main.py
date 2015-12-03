@@ -13,11 +13,30 @@ def load_data():
 
 
 def find_trips(df):
+    df['taken'] = False
     trips = []
     for i, row in df.iterrows():
-        trips.append([row['GiftId']])
-
+        if not row.taken:
+            # gifts, df = add_gifts(df, santa.NORTH_POLE, santa.WEIGHT_LIMIT-santa.SLEIGH_WEIGHT)
+            trips.append([1])#gifts)
     return to_pandas(trips)
+
+
+def add_gifts(df, start_pos, available_weight):
+    gifts = []
+    min_distance = 10**9
+    index = -1
+    for i, row in df.iterrows():
+        if not row.taken and row.Weight < available_weight:
+            pos = row['Latitude'], row['Longitude']
+            dist = santa.haversine(start_pos, pos)
+            if dist < min_distance:
+                index = i
+                min_distance = dist
+    if index >= 0:
+        gifts.append(df.loc[[index]])
+        df.set_value(index, 'taken', True)
+    return gifts, df
 
 
 def save_solution(df):
